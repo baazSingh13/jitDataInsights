@@ -50,39 +50,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
     revealElements.forEach(el => revealObserver.observe(el));
 
-    // Particle Network Animation
+    // Particle Network Animation with Data Transfer
     const canvas = document.getElementById('data-canvas');
     if (canvas) {
         const ctx = canvas.getContext('2d');
         let width, height;
         let particles = [];
-        const particleCount = 250;
-        const connectionDistance = 90;
+        let packets = []; // "Data packets" moving between nodes
+        
+        // Configuration
+        const config = {
+            particleCount: 150, // Reduced slightly for full screen performance
+            connectionDistance: 120,
+            packetSpawnRate: 0.05, // Chance per frame to spawn a packet on a connection
+            packetSpeed: 2,
+            colors: ['#00f0ff', '#7000ff', '#ffffff', '#0066ff', '#ff00aa']
+        };
+
         let mouseX = 0, mouseY = 0;
 
         function resize() {
-            width = canvas.parentElement.offsetWidth;
-            height = canvas.parentElement.offsetHeight;
+            width = window.innerWidth;
+            height = window.innerHeight;
             canvas.width = width;
             canvas.height = height;
-            initParticles();
+            // Re-distribute particles if needed, or just keep them
+            if (particles.length === 0) initParticles();
         }
 
         class Particle {
             constructor() {
                 this.x = Math.random() * width;
                 this.y = Math.random() * height;
-                this.vx = (Math.random() - 0.5) * 1.5; // Slightly faster for "busy" look
-                this.vy = (Math.random() - 0.5) * 1.5;
-                this.size = Math.random() * 3 + 1; // Varied sizes
-
-                // Varied colors
-                const colors = ['#00f0ff', '#7000ff', '#ffffff', '#0066ff', '#ff00aa'];
-                this.color = colors[Math.floor(Math.random() * colors.length)];
-
-                // Varied shapes
-                const shapes = ['circle', 'square', 'triangle'];
-                this.shape = shapes[Math.floor(Math.random() * shapes.length)];
+                this.vx = (Math.random() - 0.5) * 1.0;
+                this.vy = (Math.random() - 0.5) * 1.0;
+                this.size = Math.random() * 2 + 1;
+                this.color = config.colors[Math.floor(Math.random() * config.colors.length)];
             }
 
             update() {
@@ -93,40 +96,62 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (this.x < 0 || this.x > width) this.vx *= -1;
                 if (this.y < 0 || this.y > height) this.vy *= -1;
 
-                // Mouse interaction repulsion
+                // Mouse interaction
                 const dx = this.x - mouseX;
                 const dy = this.y - mouseY;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < 100) {
-                    const force = (100 - distance) / 100;
-                    this.vx += (dx / distance) * force * 0.5;
-                    this.vy += (dy / distance) * force * 0.5;
+                if (distance < 150) {
+                    const force = (150 - distance) / 150;
+                    this.vx += (dx / distance) * force * 0.2;
+                    this.vy += (dy / distance) * force * 0.2;
                 }
             }
 
             draw() {
                 ctx.beginPath();
                 ctx.fillStyle = this.color;
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
 
-                if (this.shape === 'circle') {
-                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                    ctx.fill();
-                } else if (this.shape === 'square') {
-                    ctx.rect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
-                    ctx.fill();
-                } else if (this.shape === 'triangle') {
-                    ctx.moveTo(this.x, this.y - this.size);
-                    ctx.lineTo(this.x + this.size, this.y + this.size);
-                    ctx.lineTo(this.x - this.size, this.y + this.size);
-                    ctx.closePath();
-                    ctx.fill();
-                }
+        class Packet {
+            constructor(p1, p2) {
+                this.p1 = p1;
+                this.p2 = p2;
+                this.progress = 0;
+                this.speed = config.packetSpeed / Math.hypot(p2.x - p1.x, p2.y - p1.y); // Normalize speed
+                this.color = '#ffffff'; // White/Bright for data
+                this.size = 2;
+            }
+
+            update() {
+                this.progress += this.speed;
+                return this.progress >= 1; // Return true if finished
+            }
+
+            draw() {
+                const x = this.p1.x + (this.p2.x - this.p1.x) * this.progress;
+                const y = this.p1.y + (this.p2.y - this.p1.y) * this.progress;
+                
+                ctx.beginPath();
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = this.color;
+                ctx.arc(x, y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0; // Reset
             }
         }
 
         function initParticles() {
             particles = [];
-            for (let i = 0; i < particleCount; i++) {
+            packets = [];
+            // Adjust count based on screen size area roughly
+            const area = width * height;
+            const count = Math.min(200, Math.floor(area / 10000));
+            
+            for (let i = 0; i < count; i++) {
                 particles.push(new Particle());
             }
         }
@@ -134,35 +159,52 @@ document.addEventListener('DOMContentLoaded', () => {
         function animate() {
             ctx.clearRect(0, 0, width, height);
 
-            particles.forEach((p, index) => {
+            // Update and draw particles
+            particles.forEach(p => {
                 p.update();
                 p.draw();
+            });
 
-                // Draw connections
-                for (let j = index + 1; j < particles.length; j++) {
+            // Connections and Packets
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const p1 = particles[i];
                     const p2 = particles[j];
-                    const dx = p.x - p2.x;
-                    const dy = p.y - p2.y;
+                    const dx = p1.x - p2.x;
+                    const dy = p1.y - p2.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
-                    if (dist < connectionDistance) {
+                    if (dist < config.connectionDistance) {
+                        // Draw Connection
                         ctx.beginPath();
-                        ctx.strokeStyle = `rgba(100, 100, 255, ${1 - dist / connectionDistance})`;
-                        ctx.lineWidth = 0.5;
-                        ctx.moveTo(p.x, p.y);
+                        ctx.strokeStyle = `rgba(100, 100, 255, ${0.15 * (1 - dist / config.connectionDistance)})`;
+                        ctx.lineWidth = 1;
+                        ctx.moveTo(p1.x, p1.y);
                         ctx.lineTo(p2.x, p2.y);
                         ctx.stroke();
+
+                        // Chance to spawn packet
+                        if (Math.random() < 0.001) { // Very low chance per frame per connection, but many connections
+                            packets.push(new Packet(p1, p2));
+                        }
                     }
                 }
+            }
+
+            // Update and draw packets
+            packets = packets.filter(packet => {
+                const finished = packet.update();
+                if (!finished) packet.draw();
+                return !finished;
             });
+
             requestAnimationFrame(animate);
         }
 
-        // Mouse tracking (relative to canvas)
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            mouseX = e.clientX - rect.left;
-            mouseY = e.clientY - rect.top;
+        // Mouse tracking (global)
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
         });
 
         // Init
