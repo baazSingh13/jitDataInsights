@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let width, height;
         let particles = [];
         let packets = []; // "Data packets" moving between nodes
-        
+
         // Configuration
         const config = {
             particleCount: 150, // Reduced slightly for full screen performance
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
             draw() {
                 const x = this.p1.x + (this.p2.x - this.p1.x) * this.progress;
                 const y = this.p1.y + (this.p2.y - this.p1.y) * this.progress;
-                
+
                 ctx.beginPath();
                 ctx.fillStyle = this.color;
                 ctx.shadowBlur = 5;
@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Adjust count based on screen size area roughly
             const area = width * height;
             const count = Math.min(200, Math.floor(area / 10000));
-            
+
             for (let i = 0; i < count; i++) {
                 particles.push(new Particle());
             }
@@ -211,5 +211,79 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('resize', resize);
         resize();
         animate();
+    }
+
+    // --- FIREBASE INTEGRATION ---
+    // TODO: Replace with your actual Firebase project configuration
+    // Get this from: https://console.firebase.google.com/
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY_HERE",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    // Initialize Firebase
+    if (typeof firebase !== 'undefined') {
+        try {
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore();
+
+            // Contact Form Handling
+            const contactForm = document.getElementById('contact-form');
+            if (contactForm) {
+                contactForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const btn = contactForm.querySelector('button');
+                    const originalText = btn.textContent;
+
+                    // Form Data
+                    const nameInput = contactForm.querySelector('input[type="text"]');
+                    const emailInput = contactForm.querySelector('input[type="email"]');
+                    const messageInput = contactForm.querySelector('textarea');
+
+                    // UI Loading State
+                    btn.textContent = 'Transmitting...';
+                    btn.disabled = true;
+
+                    try {
+                        await db.collection("contacts").add({
+                            name: nameInput.value,
+                            email: emailInput.value,
+                            message: messageInput.value,
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+
+                        // Success Feedback
+                        btn.textContent = 'Transmission Received!';
+                        btn.style.background = 'var(--accent-cyan)';
+                        contactForm.reset();
+
+                        setTimeout(() => {
+                            btn.textContent = originalText;
+                            btn.style.background = 'var(--accent-gradient)';
+                            btn.disabled = false;
+                        }, 3000);
+
+                    } catch (error) {
+                        console.error("Error adding document: ", error);
+                        // Error Feedback (or fallback for missing config)
+                        if (error.code === 'invalid-argument' || error.message.includes('configurations')) {
+                            alert("System Error: Database configuration missing. Please update script.js with your Firebase keys.");
+                        } else {
+                            alert("Transmission Failed: " + error.message);
+                        }
+                        btn.textContent = 'Retry Transmission';
+                        btn.disabled = false;
+                    }
+                });
+            }
+        } catch (e) {
+            console.log("Firebase not initialized fully (check config).", e);
+        }
+    } else {
+        console.error("Firebase SDK not loaded.");
     }
 });
