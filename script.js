@@ -216,13 +216,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- FIREBASE INTEGRATION ---
     // TODO: Replace with your actual Firebase project configuration
     // Get this from: https://console.firebase.google.com/
+    // const firebaseConfig = {
+    //     apiKey: "YOUR_API_KEY_HERE",
+    //     authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    //     projectId: "YOUR_PROJECT_ID",
+    //     storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    //     messagingSenderId: "YOUR_SENDER_ID",
+    //     appId: "YOUR_APP_ID"
+    // };
+
     const firebaseConfig = {
-        apiKey: "YOUR_API_KEY_HERE",
-        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT_ID.appspot.com",
-        messagingSenderId: "YOUR_SENDER_ID",
-        appId: "YOUR_APP_ID"
+        apiKey: "AIzaSyBmpMxcF7EHjeFKS-IrEWij8sDnQsngRSQ",
+        authDomain: "jitdatainsights.firebaseapp.com",
+        projectId: "jitdatainsights",
+        storageBucket: "jitdatainsights.firebasestorage.app",
+        messagingSenderId: "142667569709",
+        appId: "1:142667569709:web:b845ad8ed266dbe1ae36a4",
+        measurementId: "G-1769B6ETWW"
     };
 
     // Initialize Firebase
